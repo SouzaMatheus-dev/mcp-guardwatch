@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "guardwatch": {
+      "command": "dotnet",
+      "args": [
+        "run",
+        "--project",
+        "src/GuardWatch.Mcp/GuardWatch.Mcp.csproj",
+        "--no-launch-profile"
+      ]
+    }
+  }
+}

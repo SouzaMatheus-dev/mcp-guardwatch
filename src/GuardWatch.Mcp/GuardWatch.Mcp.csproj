@@ -1,0 +1,34 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>GuardWatch.Mcp</RootNamespace>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>guardwatch-mcp</ToolCommandName>
+    <PackageId>GuardWatch.Mcp</PackageId>
+    <Version>0.2.0</Version>
+    <Authors>matneves</Authors>
+    <Company>SouzaMatheus-dev</Company>
+    <Description>Servidor MCP somente leitura para logs, métricas, Kubernetes, APM, banco, SIEM e saúde do GuardWatch, com login LDAP.</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/SouzaMatheus-dev/guardwatch-mcp</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/SouzaMatheus-dev/guardwatch-mcp</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageTags>mcp;guardwatch;observability;logs</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.12" />
+    <PackageReference Include="ModelContextProtocol" Version="2.2.0" />
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="10.0.12" />
+  </ItemGroup>
+
+</Project>

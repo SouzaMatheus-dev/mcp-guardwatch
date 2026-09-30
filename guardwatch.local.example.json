@@ -1,0 +1,6 @@
+{
+  "baseUrl": "https://guardwatch.example",
+  "ldapProviderId": 1,
+  "username": "seu.usuario",
+  "password": "sua-senha-ldap"
+}

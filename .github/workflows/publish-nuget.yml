@@ -1,0 +1,68 @@
+name: Publish NuGet
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Test
+        run: dotnet test GuardWatch.slnx -c Release
+
+      - name: Pack
+        run: dotnet pack src/GuardWatch.Mcp/GuardWatch.Mcp.csproj -c Release -o nupkg
+
+      - name: NuGet login (Trusted Publisher)
+        uses: NuGet/login@v1
+        id: login
+        with:
+          user: matneves
+
+      - name: Publish to NuGet.org
+        shell: pwsh
+        run: |
+          $package = Get-ChildItem -Path nupkg/*.nupkg | Select-Object -First 1
+          if (-not $package) { throw "Nenhum .nupkg encontrado em nupkg" }
+          Write-Host "Publicando $($package.Name)..."
+          dotnet nuget push $package.FullName `
+            --api-key ${{ steps.login.outputs.NUGET_API_KEY }} `
+            --source https://api.nuget.org/v3/index.json
+
+      - name: Create GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $version = $tag.TrimStart('v')
+          if (gh release view $tag 2>$null) {
+            Write-Host "Release $tag já existe, pulando criação."
+            exit 0
+          }
+          $notes = @"
+          ## GuardWatch.Mcp $version
+
+          Pacote publicado no [NuGet](https://www.nuget.org/packages/GuardWatch.Mcp/$version).
+
+          ### Instalação
+
+          ```powershell
+          dotnet tool install --global GuardWatch.Mcp --version $version
+          ```
+
+          Veja o [README](https://github.com/${{ github.repository }}/blob/$tag/README.md) para configuração MCP.
+          "@
+          gh release create $tag --title "GuardWatch.Mcp $version" --notes $notes

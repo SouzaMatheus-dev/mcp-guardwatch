@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/GuardWatch.Mcp/GuardWatch.Mcp.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/GuardWatch.Mcp.Tests/GuardWatch.Mcp.Tests.csproj" />
+  </Folder>
+</Solution>
