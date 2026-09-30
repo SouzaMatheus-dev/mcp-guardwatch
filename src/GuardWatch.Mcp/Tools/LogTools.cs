@@ -7,7 +7,7 @@ namespace GuardWatch.Mcp.Tools;
 [McpServerToolType]
 public sealed class LogTools(GuardWatchClient client, ILogger<LogTools> logger)
 {
-    private const string EnvHelp = "Ambiente que a pessoa escolheu: PRD, HML ou DEV. Se ela não disse, pergunte antes de chamar.";
+    private const string EnvHelp = "env devolvido por list_environments depois que a pessoa escolheu PRD, HML ou DEV. Se ela não escolheu, chame list_environments e pergunte antes.";
     [McpServerTool(Name = "query_logs"), Description("Busca logs do GuardWatch. Use para achar erros, exceções e mensagens de um serviço, namespace ou máquina.")]
     public Task<string> QueryLogs(
         [Description("Texto livre, no mesmo formato da busca da tela de Logs. Ex.: timeout, NullReference, trace id.")] string? query = null,

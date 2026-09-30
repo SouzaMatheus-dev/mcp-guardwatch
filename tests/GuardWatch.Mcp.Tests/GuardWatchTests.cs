@@ -16,9 +16,36 @@ public sealed class PromptTests
     {
         var text = GuardWatchPrompts.Investigar("pix-chaves", "HML");
 
+        Assert.Contains("list_environments", text, StringComparison.Ordinal);
         Assert.Contains("HML", text, StringComparison.Ordinal);
-        Assert.Contains("env HML", text, StringComparison.Ordinal);
-        Assert.Contains("PRD, HML ou DEV", text, StringComparison.Ordinal);
+        Assert.Contains("sufixo", text, StringComparison.Ordinal);
+    }
+}
+
+public sealed class EnvironmentCatalogTests
+{
+    [Fact]
+    public void Lista_separa_env_e_sufixo_e_filtra_prd()
+    {
+        const string json = """
+        {
+          "services": ["api"],
+          "environments": [
+            { "name": "pagamentos", "env": "prd", "suffix": "-prd" },
+            { "name": "pagamentos", "env": "hml", "suffix": "-hml" },
+            "risco-prd"
+          ]
+        }
+        """;
+
+        var all = EnvironmentCatalog.Read(json);
+        var prd = EnvironmentCatalog.Matching(all, "PRD");
+
+        Assert.Equal(3, all.Count);
+        Assert.Equal(2, prd.Count);
+        Assert.Contains(prd, item => item.Name == "pagamentos" && item.Env == "prd" && item.Suffix == "-prd");
+        Assert.Contains(prd, item => item.Name == "risco-prd" && item.Suffix == "-prd" && item.Env == "prd");
+        Assert.DoesNotContain(prd, item => item.Env == "hml");
     }
 }
 

@@ -131,7 +131,7 @@ Crie `.cursor/mcp.json` nesta pasta para subir o servidor com `dotnet run`. Esse
 }
 ```
 
-O prompt `investigar_servico` pede o alvo e o ambiente: PRD, HML ou DEV. Os três convivem na mesma instância, então a análise espera essa escolha antes de consultar. No chat, o servidor também pergunta o ambiente antes da primeira leitura.
+O prompt `investigar_servico` pede o alvo e o ambiente: PRD, HML ou DEV. A instância lista os ambientes com `env` e sufixo. Depois da escolha, a análise mostra só os que batem com esse recorte e consulta esse `env`.
 
 ## Catálogo
 

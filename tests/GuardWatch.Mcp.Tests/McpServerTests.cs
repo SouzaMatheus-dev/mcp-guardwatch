@@ -37,6 +37,7 @@ public sealed class McpServerTests
         var tools = await client.ListToolsAsync();
         var names = tools.Select(tool => tool.Name).ToHashSet(StringComparer.Ordinal);
 
+        Assert.Contains("list_environments", names);
         Assert.Contains("query_logs", names);
         Assert.Contains("log_patterns", names);
         Assert.Contains("machine_metrics", names);
