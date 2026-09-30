@@ -46,7 +46,7 @@ builder.Services.AddSingleton(sp =>
         BaseAddress = new Uri(settings.BaseUrl.TrimEnd('/') + "/"),
         Timeout = TimeSpan.FromSeconds(90)
     };
-    http.DefaultRequestHeaders.UserAgent.ParseAdd("GuardWatch.Mcp/0.2");
+    http.DefaultRequestHeaders.UserAgent.ParseAdd("McpGuardWatch/0.3");
     http.DefaultRequestHeaders.Accept.ParseAdd("application/json");
     http.DefaultRequestHeaders.Accept.ParseAdd("text/plain");
     return new GuardWatchClient(

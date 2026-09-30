@@ -53,16 +53,16 @@ jobs:
             exit 0
           }
           $notes = @"
-          ## GuardWatch.Mcp $version
+          ## McpGuardWatch $version
 
-          Pacote publicado no [NuGet](https://www.nuget.org/packages/GuardWatch.Mcp/$version).
+          Pacote publicado no [NuGet](https://www.nuget.org/packages/McpGuardWatch/$version).
 
           ### Instalação
 
           ```powershell
-          dotnet tool install --global GuardWatch.Mcp --version $version
+          dotnet tool install --global McpGuardWatch --version $version
           ```
 
           Veja o [README](https://github.com/${{ github.repository }}/blob/$tag/README.md) para configuração MCP.
           "@
-          gh release create $tag --title "GuardWatch.Mcp $version" --notes $notes
+          gh release create $tag --title "McpGuardWatch $version" --notes $notes

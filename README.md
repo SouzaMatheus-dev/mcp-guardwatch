@@ -1,6 +1,6 @@
 # GuardWatch MCP
 
-[![NuGet](https://img.shields.io/nuget/v/GuardWatch.Mcp?logo=nuget&logoColor=white&label=NuGet&color=004880)](https://www.nuget.org/packages/GuardWatch.Mcp)
+[![NuGet](https://img.shields.io/nuget/v/McpGuardWatch?logo=nuget&logoColor=white&label=NuGet&color=004880)](https://www.nuget.org/packages/McpGuardWatch)
 [![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/download/dotnet/10.0)
 [![C#](https://img.shields.io/badge/C%23-13-239120?logo=csharp&logoColor=white)](https://learn.microsoft.com/dotnet/csharp/)
 [![MCP](https://img.shields.io/badge/MCP-2.2-111111)](https://modelcontextprotocol.io)
@@ -42,11 +42,11 @@ Criar cluster, alterar regra, disparar coleta ou mudar retenção continua na in
 ## Instalação
 
 ```powershell
-dotnet tool install --global GuardWatch.Mcp
-dotnet tool update --global GuardWatch.Mcp
+dotnet tool install --global McpGuardWatch
+dotnet tool update --global McpGuardWatch
 ```
 
-O comando instalado é `guardwatch-mcp`.
+O comando instalado é `mcp-guardwatch`.
 
 No Cursor, com a ferramenta global:
 
@@ -54,7 +54,7 @@ No Cursor, com a ferramenta global:
 {
   "mcpServers": {
     "guardwatch": {
-      "command": "guardwatch-mcp"
+      "command": "mcp-guardwatch"
     }
   }
 }
@@ -67,7 +67,7 @@ Ou via `dnx`, sem instalação prévia:
   "mcpServers": {
     "guardwatch": {
       "command": "dnx",
-      "args": ["GuardWatch.Mcp", "--yes"]
+      "args": ["McpGuardWatch", "--yes"]
     }
   }
 }
