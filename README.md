@@ -81,9 +81,9 @@ Há um prompt `investigar_servico`. Informe o serviço, namespace, pod ou máqui
 
 ## Uso como ferramenta NuGet
 
-O pacote `GuardWatch.Mcp` versão `0.2.0` é um dotnet tool de comando `guardwatch-mcp`, publicado para a comunidade.
+O pacote `GuardWatch.Mcp` versão `0.2.1` é um dotnet tool de comando `guardwatch-mcp`, publicado para a comunidade.
 
-A publicação sobe pela tag `v0.2.0`. O workflow `.github/workflows/publish-nuget.yml` empacota e envia o pacote com Trusted Publishing, na conta NuGet `matneves`.
+A publicação sobe pela tag `v0.2.1`. O workflow `.github/workflows/publish-nuget.yml` empacota e envia o pacote com Trusted Publishing, na conta NuGet `matneves`.
 
 Na primeira publicação, cadastre o repositório em nuget.org → Trusted Publishing antes de disparar a tag. O arquivo do workflow é só o nome: `publish-nuget.yml`.
 
@@ -103,7 +103,7 @@ No Cursor, depois da publicação:
 Ou, com instalação local:
 
 ```powershell
-dotnet tool install -g GuardWatch.Mcp --version 0.2.0
+dotnet tool install -g GuardWatch.Mcp --version 0.2.1
 ```
 
 ```json
