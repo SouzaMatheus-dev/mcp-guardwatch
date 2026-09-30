@@ -3,5 +3,6 @@ obj/
 nupkg/
 .vs/
 *.user
+.cursor/
 guardwatch.local.json
 .guardwatch/

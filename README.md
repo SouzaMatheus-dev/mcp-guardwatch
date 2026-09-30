@@ -113,7 +113,7 @@ Quem instala a ferramenta fora desta pasta deve usar `%USERPROFILE%\.guardwatch\
 
 ## Uso a partir deste repositório
 
-O arquivo `.cursor/mcp.json` sobe o servidor com `dotnet run`. Abra esta pasta, habilite o servidor `guardwatch` e faça a primeira pergunta. O login ocorre na primeira ferramenta.
+Crie `.cursor/mcp.json` nesta pasta para subir o servidor com `dotnet run`. Esse arquivo fica fora do repositório. Abra a pasta, habilite o servidor `guardwatch` e faça a primeira pergunta. O login ocorre na primeira ferramenta.
 
 ```json
 {
