@@ -13,15 +13,20 @@ public sealed class McpServerTests
             "src", "GuardWatch.Mcp", "GuardWatch.Mcp.csproj"));
         Assert.True(File.Exists(project), project);
 
-        var configuration = new DirectoryInfo(AppContext.BaseDirectory).Parent?.Parent?.Name;
+        var tfmDirectory = new DirectoryInfo(AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+        var configuration = tfmDirectory.Parent?.Name;
         if (configuration is not ("Debug" or "Release"))
             configuration = "Debug";
+
+        var server = Path.Combine(tfmDirectory.FullName, "..", "..", "..", "..", "..", "src", "GuardWatch.Mcp", "bin", configuration, tfmDirectory.Name, "GuardWatch.Mcp.dll");
+        server = Path.GetFullPath(server);
+        Assert.True(File.Exists(server), server);
 
         var transport = new StdioClientTransport(new StdioClientTransportOptions
         {
             Name = "guardwatch",
             Command = "dotnet",
-            Arguments = ["run", "--project", project, "--configuration", configuration, "--no-launch-profile", "--no-build"],
+            Arguments = [server],
             EnvironmentVariables = new Dictionary<string, string?>
             {
                 ["GUARDWATCH_BASE_URL"] = "https://guardwatch.example"
