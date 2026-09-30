@@ -1,25 +1,79 @@
 # GuardWatch MCP
 
-Servidor [MCP](https://modelcontextprotocol.io) em .NET para consultar uma instância do GuardWatch. Ele autentica com o LDAP já configurado nessa instância e expõe só operações de leitura. O que o usuário vê no GuardWatch é o que as ferramentas devolvem: o RBAC da conta vale também aqui.
+[![NuGet](https://img.shields.io/nuget/v/GuardWatch.Mcp?logo=nuget&logoColor=white&label=NuGet&color=004880)](https://www.nuget.org/packages/GuardWatch.Mcp)
+[![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/download/dotnet/10.0)
+[![C#](https://img.shields.io/badge/C%23-13-239120?logo=csharp&logoColor=white)](https://learn.microsoft.com/dotnet/csharp/)
+[![MCP](https://img.shields.io/badge/MCP-2.2-111111)](https://modelcontextprotocol.io)
+[![License](https://img.shields.io/github/license/SouzaMatheus-dev/guardwatch-mcp?color=blue)](LICENSE)
 
-Não há URL nem provedor LDAP embutidos. Cada instalação aponta para o próprio GuardWatch.
+![Logs](https://img.shields.io/badge/Logs-leitura-0f766e)
+![Métricas](https://img.shields.io/badge/M%C3%A9tricas-leitura-0369a1)
+![Kubernetes](https://img.shields.io/badge/Kubernetes-leitura-326CE5?logo=kubernetes&logoColor=white)
+![APM](https://img.shields.io/badge/APM-traces-7c3aed)
+![DBM](https://img.shields.io/badge/DBM-banco-b45309)
+![SIEM](https://img.shields.io/badge/SIEM-eventos-be123c)
+![RCA](https://img.shields.io/badge/RCA-casos-44403c)
+![LDAP](https://img.shields.io/badge/Auth-LDAP-1d4ed8)
+![Windows](https://img.shields.io/badge/Token-DPAPI-0078D4?logo=windows&logoColor=white)
 
-## O que ele faz
+Servidor [MCP](https://modelcontextprotocol.io) em .NET para consultar uma instância do GuardWatch. A autenticação usa o LDAP já configurado nessa instância. As ferramentas devolvem o mesmo recorte que a conta enxerga na interface: o RBAC vale também aqui.
 
-- Busca logs da plataforma, histograma, facetas, padrões, trace e contexto.
-- Lê métricas de máquina, container, dashboard e Kubernetes (pods, nós, uso, eventos, YAML).
-- Consulta alertas, health checks, APM, banco (DBM), SIEM e casos de RCA.
+A URL e o provedor LDAP ficam na configuração de cada instalação. O pacote não traz endereço, usuário nem senha.
 
-Não cria, altera nem apaga recurso. Não há ferramenta de login interativo no chat: a credencial entra por arquivo local ou variável de ambiente, e o token fica cifrado no Windows.
+Repositório: https://github.com/SouzaMatheus-dev/guardwatch-mcp
 
-Respostas grandes são cortadas. Campos com senha, token, kubeconfig ou segredo são substituídos por `[redigido]` antes de chegarem ao modelo.
+## Escopo
+
+Leitura de logs, métricas, Kubernetes, alertas, saúde, APM, banco (DBM), SIEM e RCA.
+
+A credencial entra por arquivo local ou variável de ambiente. O token da sessão fica cifrado com DPAPI em `%LOCALAPPDATA%\GuardWatch\Mcp\token.bin`. Respostas grandes são cortadas. Campos com senha, token, kubeconfig ou segredo saem como `[redigido]`.
+
+Criar cluster, alterar regra, disparar coleta ou mudar retenção continua na interface do GuardWatch.
 
 ## Requisitos
 
-- Windows, com DPAPI para guardar o token em `%LOCALAPPDATA%\GuardWatch\Mcp\token.bin`.
-- [.NET SDK 10](https://dotnet.microsoft.com/download) para desenvolver. Para só instalar a ferramenta, o runtime que o `dotnet tool` exigir.
-- Rede até a URL do GuardWatch configurada.
-- Usuário LDAP com permissão de leitura nessa instância.
+| Item | Detalhe |
+| --- | --- |
+| Sistema | Windows, para o DPAPI do token |
+| .NET | SDK 10 para desenvolver. A ferramenta instalada usa o runtime exigido pelo `dotnet tool` |
+| Rede | HTTPS até a origem do GuardWatch |
+| Conta | Usuário LDAP com permissão de leitura nessa instância |
+
+## Instalação
+
+```powershell
+dotnet tool install --global GuardWatch.Mcp
+dotnet tool update --global GuardWatch.Mcp
+```
+
+O comando instalado é `guardwatch-mcp`.
+
+No Cursor, com a ferramenta global:
+
+```json
+{
+  "mcpServers": {
+    "guardwatch": {
+      "command": "guardwatch-mcp"
+    }
+  }
+}
+```
+
+Ou via `dnx`, sem instalação prévia:
+
+```json
+{
+  "mcpServers": {
+    "guardwatch": {
+      "command": "dnx",
+      "args": ["GuardWatch.Mcp", "--yes"]
+    }
+  }
+}
+```
+
+A ferramenta instalada não enxerga o `guardwatch.local.json` desta pasta. Grave `%USERPROFILE%\.guardwatch\mcp.json` ou aponte `GUARDWATCH_CONFIG`.
 
 ## Configuração
 
@@ -57,7 +111,7 @@ O processo procura a configuração nesta ordem. Variável de ambiente ganha do 
 
 Quem instala a ferramenta fora desta pasta deve usar `%USERPROFILE%\.guardwatch\mcp.json` ou `GUARDWATCH_CONFIG`, porque o diretório atual do Cursor pode não ser o do projeto.
 
-## Uso no Cursor a partir deste repositório
+## Uso a partir deste repositório
 
 O arquivo `.cursor/mcp.json` sobe o servidor com `dotnet run`. Abra esta pasta, habilite o servidor `guardwatch` e faça a primeira pergunta. O login ocorre na primeira ferramenta.
 
@@ -77,46 +131,7 @@ O arquivo `.cursor/mcp.json` sobe o servidor com `dotnet run`. Abra esta pasta, 
 }
 ```
 
-Há um prompt `investigar_servico`. Informe o serviço, namespace, pod ou máquina. Ele pede logs, eventos e métricas nessa ordem.
-
-## Uso como ferramenta NuGet
-
-O pacote `GuardWatch.Mcp` versão `0.2.2` é um dotnet tool de comando `guardwatch-mcp`, publicado para a comunidade.
-
-A publicação sobe pela tag `v0.2.2`. O workflow `.github/workflows/publish-nuget.yml` empacota e envia o pacote com Trusted Publishing, na conta NuGet `matneves`.
-
-Na primeira publicação, cadastre o repositório em nuget.org → Trusted Publishing antes de disparar a tag. O arquivo do workflow é só o nome: `publish-nuget.yml`.
-
-No Cursor, depois da publicação:
-
-```json
-{
-  "mcpServers": {
-    "guardwatch": {
-      "command": "dnx",
-      "args": ["GuardWatch.Mcp", "--yes"]
-    }
-  }
-}
-```
-
-Ou, com instalação local:
-
-```powershell
-dotnet tool install -g GuardWatch.Mcp --version 0.2.2
-```
-
-```json
-{
-  "mcpServers": {
-    "guardwatch": {
-      "command": "guardwatch-mcp"
-    }
-  }
-}
-```
-
-Antes do primeiro commit, confira se `guardwatch.local.json` não aparece no `git status`. Esse arquivo está no `.gitignore`.
+O prompt `investigar_servico` pede logs, eventos e métricas, nessa ordem, para um serviço, namespace, pod ou máquina.
 
 ## Catálogo
 
@@ -234,7 +249,11 @@ dotnet test GuardWatch.slnx
 dotnet run --project src/GuardWatch.Mcp/GuardWatch.Mcp.csproj --no-launch-profile -- --check
 ```
 
-`--check` autentica e lê o usuário, o volume de logs, os clusters e uma amostra de erro da última hora. Não imprime a senha.
+`--check` autentica e lê o usuário, o volume de logs, os clusters e uma amostra de erro da última hora. A senha não entra na saída.
+
+`guardwatch.local.json` está no `.gitignore`. Confira o `git status` antes de commitar.
+
+A publicação no NuGet dispara na tag `v*`. O workflow `.github/workflows/publish-nuget.yml` testa, empacota e envia com Trusted Publishing, na conta `matneves`.
 
 ## Limitações
 
@@ -255,3 +274,7 @@ dotnet run --project src/GuardWatch.Mcp/GuardWatch.Mcp.csproj --no-launch-profil
 | HTTP 403 ou feature desligada | A conta não tem essa leitura. `whoami` mostra as permissões. |
 | `The SSL connection could not be established` | Repita. Se persistir, a inspeção TLS da rede bloqueou o .NET. O navegador e o SDK usam depósitos de certificado diferentes. |
 | A ferramenta NuGet não acha a senha | Grave `%USERPROFILE%\.guardwatch\mcp.json`. O `dotnet run` desta pasta acha o `guardwatch.local.json` local. A ferramenta instalada não. |
+
+## Licença
+
+[MIT](LICENSE).
