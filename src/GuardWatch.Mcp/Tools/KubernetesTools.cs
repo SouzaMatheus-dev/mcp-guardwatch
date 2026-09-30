@@ -7,7 +7,7 @@ namespace GuardWatch.Mcp.Tools;
 [McpServerToolType]
 public sealed class KubernetesTools(GuardWatchClient client, ILogger<KubernetesTools> logger)
 {
-    [McpServerTool(Name = "list_k8s_clusters"), Description("Lista os clusters Kubernetes conhecidos pelo GuardWatch. O id daqui entra nas outras ferramentas de cluster.")]
+    [McpServerTool(Name = "list_k8s_clusters"), Description("Lista os clusters Kubernetes conhecidos pelo GuardWatch. Depois da pessoa escolher PRD, HML ou DEV, siga só o cluster desse ambiente. O id entra nas outras ferramentas.")]
     public Task<string> ListClusters(CancellationToken cancellationToken = default) =>
         ToolRunner.Run(logger, async () => Payload.CompactList(await client.GetK8sClustersAsync(cancellationToken)));
 

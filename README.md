@@ -131,7 +131,7 @@ Crie `.cursor/mcp.json` nesta pasta para subir o servidor com `dotnet run`. Esse
 }
 ```
 
-O prompt `investigar_servico` pede logs, eventos e métricas, nessa ordem, para um serviço, namespace, pod ou máquina.
+O prompt `investigar_servico` pede o alvo e o ambiente: PRD, HML ou DEV. Os três convivem na mesma instância, então a análise espera essa escolha antes de consultar. No chat, o servidor também pergunta o ambiente antes da primeira leitura.
 
 ## Catálogo
 

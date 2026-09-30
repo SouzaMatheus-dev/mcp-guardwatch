@@ -7,6 +7,7 @@ namespace GuardWatch.Mcp.Tools;
 [McpServerToolType]
 public sealed class LogTools(GuardWatchClient client, ILogger<LogTools> logger)
 {
+    private const string EnvHelp = "Ambiente que a pessoa escolheu: PRD, HML ou DEV. Se ela não disse, pergunte antes de chamar.";
     [McpServerTool(Name = "query_logs"), Description("Busca logs do GuardWatch. Use para achar erros, exceções e mensagens de um serviço, namespace ou máquina.")]
     public Task<string> QueryLogs(
         [Description("Texto livre, no mesmo formato da busca da tela de Logs. Ex.: timeout, NullReference, trace id.")] string? query = null,
@@ -18,7 +19,7 @@ public sealed class LogTools(GuardWatchClient client, ILogger<LogTools> logger)
         [Description("Namespace Kubernetes.")] string? ns = null,
         [Description("Nome do serviço.")] string? service = null,
         [Description("Severidade: debug, info, warning, error, critical.")] string? severity = null,
-        [Description("Ambiente, por exemplo prod ou hml.")] string? env = null,
+        [Description(EnvHelp)] string? env = null,
         [Description("Tipo de erro, quando a tela de logs classifica um.")] string? error_type = null,
         [Description("Remove ruído configurado no GuardWatch. Padrão true.")] bool exclude_noise = true,
         [Description("Quantidade de linhas. Padrão 40. Máximo 100.")] int limit = 40,
@@ -40,7 +41,7 @@ public sealed class LogTools(GuardWatchClient client, ILogger<LogTools> logger)
         [Description("Namespace.")] string? ns = null,
         [Description("Serviço.")] string? service = null,
         [Description("Severidade.")] string? severity = null,
-        [Description("Ambiente.")] string? env = null,
+        [Description(EnvHelp)] string? env = null,
         [Description("Tipo de erro.")] string? error_type = null,
         [Description("Remove ruído. Padrão true.")] bool exclude_noise = true,
         [Description("Número de baldes. Padrão 30.")] int buckets = 30,
@@ -59,7 +60,7 @@ public sealed class LogTools(GuardWatchClient client, ILogger<LogTools> logger)
         [Description("Id da máquina.")] string? machine_id = null,
         [Description("Serviço.")] string? service = null,
         [Description("Severidade.")] string? severity = null,
-        [Description("Ambiente.")] string? env = null,
+        [Description(EnvHelp)] string? env = null,
         [Description("Remove ruído. Padrão true.")] bool exclude_noise = true,
         CancellationToken cancellationToken = default)
     {
@@ -76,10 +77,11 @@ public sealed class LogTools(GuardWatchClient client, ILogger<LogTools> logger)
         [Description("Id da máquina.")] string? machine_id = null,
         [Description("Nome do cluster.")] string? cluster_name = null,
         [Description("Namespace.")] string? ns = null,
+        [Description(EnvHelp)] string? env = null,
         [Description("Remove ruído. Padrão true.")] bool exclude_noise = true,
         CancellationToken cancellationToken = default)
     {
-        var search = new LogSearch(null, minutes, start_time, end_time, machine_id, cluster_name, ns, null, null, null, null, exclude_noise, 40, "desc");
+        var search = new LogSearch(null, minutes, start_time, end_time, machine_id, cluster_name, ns, null, null, env, null, exclude_noise, 40, "desc");
         return ToolRunner.Run(logger, async () =>
             Payload.RedactAndLimit(await client.LogFacetsAsync(search, cancellationToken), maxArray: 25));
     }

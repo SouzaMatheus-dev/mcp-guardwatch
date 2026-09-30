@@ -9,7 +9,7 @@
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>mcp-guardwatch</ToolCommandName>
     <PackageId>McpGuardWatch</PackageId>
-    <Version>0.3.0</Version>
+    <Version>0.3.1</Version>
     <Authors>matneves</Authors>
     <Company>SouzaMatheus-dev</Company>
     <Description>Servidor MCP somente leitura para logs, métricas, Kubernetes, APM, banco, SIEM e saúde do GuardWatch, com login LDAP.</Description>

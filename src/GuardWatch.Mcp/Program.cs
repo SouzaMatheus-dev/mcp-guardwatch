@@ -46,7 +46,7 @@ builder.Services.AddSingleton(sp =>
         BaseAddress = new Uri(settings.BaseUrl.TrimEnd('/') + "/"),
         Timeout = TimeSpan.FromSeconds(90)
     };
-    http.DefaultRequestHeaders.UserAgent.ParseAdd("McpGuardWatch/0.3");
+    http.DefaultRequestHeaders.UserAgent.ParseAdd("McpGuardWatch/0.3.1");
     http.DefaultRequestHeaders.Accept.ParseAdd("application/json");
     http.DefaultRequestHeaders.Accept.ParseAdd("text/plain");
     return new GuardWatchClient(
@@ -57,7 +57,14 @@ builder.Services.AddSingleton(sp =>
 });
 
 builder.Services
-    .AddMcpServer()
+    .AddMcpServer(options =>
+    {
+        options.ServerInstructions =
+            "PRD, HML e DEV convivem na mesma instância do GuardWatch. " +
+            "Antes de analisar logs, métricas, Kubernetes, alertas, APM, banco, SIEM ou RCA, pergunte qual ambiente a pessoa quer: PRD, HML ou DEV. " +
+            "Não consulte e não escolha um ambiente por ela. " +
+            "Com a resposta, passe env nesse valor e, no Kubernetes, use só o cluster desse ambiente.";
+    })
     .WithStdioServerTransport()
     .WithTools<LogTools>()
     .WithTools<MetricTools>()

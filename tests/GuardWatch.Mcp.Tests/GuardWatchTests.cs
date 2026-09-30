@@ -2,11 +2,25 @@ using System.Net;
 using System.Runtime.Versioning;
 using System.Text.Json;
 using GuardWatch.Mcp;
+using GuardWatch.Mcp.Tools;
 using Microsoft.Extensions.Logging.Abstractions;
 
 [assembly: SupportedOSPlatform("windows")]
 
 namespace GuardWatch.Mcp.Tests;
+
+public sealed class PromptTests
+{
+    [Fact]
+    public void Investigacao_restringe_ao_ambiente_escolhido()
+    {
+        var text = GuardWatchPrompts.Investigar("pix-chaves", "HML");
+
+        Assert.Contains("HML", text, StringComparison.Ordinal);
+        Assert.Contains("env HML", text, StringComparison.Ordinal);
+        Assert.Contains("PRD, HML ou DEV", text, StringComparison.Ordinal);
+    }
+}
 
 public sealed class SettingsTests
 {
