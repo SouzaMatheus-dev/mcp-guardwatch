@@ -46,7 +46,7 @@ builder.Services.AddSingleton(sp =>
         BaseAddress = new Uri(settings.BaseUrl.TrimEnd('/') + "/"),
         Timeout = TimeSpan.FromSeconds(90)
     };
-    http.DefaultRequestHeaders.UserAgent.ParseAdd("McpGuardWatch/0.3.2");
+    http.DefaultRequestHeaders.UserAgent.ParseAdd(PackageInfo.UserAgent);
     http.DefaultRequestHeaders.Accept.ParseAdd("application/json");
     http.DefaultRequestHeaders.Accept.ParseAdd("text/plain");
     return new GuardWatchClient(
@@ -64,11 +64,16 @@ builder.Services
             "Antes de analisar, chame list_environments sem filtro e mostre a lista com nome, env e sufixo. " +
             "Pergunte se a pessoa quer PRD, HML ou DEV. Não consulte e não escolha por ela. " +
             "Depois da resposta, chame list_environments com esse tier e mostre só os ambientes cujo env e sufixo batem. " +
-            "As consultas seguintes usam o env dessa lista e, no Kubernetes, só o cluster do mesmo sufixo.";
+            "As consultas seguintes usam o env dessa lista e, no Kubernetes, só o cluster do mesmo sufixo. " +
+            "Para saber se um serviço está no padrão de log v1, chame guardwatch_version e log_standards_audit com service e env. " +
+            "A nota usa structured, severity, correlation, exceptions, noise e sensitive. traces e datadog ficam em summary.criteria_ok.";
     })
     .WithStdioServerTransport()
     .WithTools<EnvironmentTools>()
     .WithTools<LogTools>()
+    .WithTools<LogStandardTools>()
+    .WithTools<RumTools>()
+    .WithTools<PlatformTools>()
     .WithTools<MetricTools>()
     .WithTools<KubernetesTools>()
     .WithTools<AlertTools>()

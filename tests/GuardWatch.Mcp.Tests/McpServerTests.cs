@@ -49,6 +49,16 @@ public sealed class McpServerTests
         Assert.Contains("siem_overview", names);
         Assert.Contains("list_health_checks", names);
         Assert.Contains("rca_cases", names);
+        Assert.Contains("log_standards_audit", names);
+        Assert.Contains("log_standards_criteria", names);
+        Assert.Contains("log_standards_samples", names);
+        Assert.Contains("log_standards_datadog", names);
+        Assert.Contains("list_rum_applications", names);
+        Assert.Contains("rum_web_vitals", names);
+        Assert.Contains("list_endpoint_monitors", names);
+        Assert.Contains("erp_telemetry", names);
+        Assert.Contains("guardwatch_version", names);
         Assert.DoesNotContain("create_k8s_cluster", names);
+        Assert.DoesNotContain("endpoint_monitor_results", names);
     }
 }
