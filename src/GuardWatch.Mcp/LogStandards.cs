@@ -12,6 +12,7 @@ public static partial class LogStandards
     private static readonly string[] Origins = ["apps", "k8s", "container", "agent", "all"];
     private static readonly string[] Statuses = ["padronizado", "parcial", "nao_padronizado", "critico"];
     private static readonly string[] Passed = ["ok", "pass", "passed", "padronizado", "success", "true"];
+    private static readonly string[] PassingStatus = ["ok", "pass", "passed", "padronizado", "true"];
     private static readonly string[] SampleKeys = ["sample", "samples", "message", "line", "evidence", "raw", "log", "text", "preview", "snippet"];
 
     public static bool TryWindow(int windowHours, out string? error)
@@ -42,10 +43,9 @@ public static partial class LogStandards
             ("origin", origin),
             ("refresh", "false"));
 
-    public static string DatadogPath(int windowHours, string origin) =>
+    public static string DatadogPath(int? days) =>
         ApiQuery.Build("api/v1/admin/log-standards/datadog",
-            ("window_hours", windowHours.ToString()),
-            ("origin", origin),
+            ("days", days?.ToString()),
             ("refresh", "false"));
 
     public static string SamplesPath(int windowHours, string origin, string service, string rule, string? env) =>
@@ -54,10 +54,23 @@ public static partial class LogStandards
             ("origin", origin),
             ("refresh", "false"),
             ("service", service),
-            ("rule", rule),
-            ("env", env));
+            ("criterion", rule),
+            ("env", string.IsNullOrWhiteSpace(env) ? null : CanonEnv(env)));
 
-    public static string ShapeAudit(string json, string? service, string? env, string? status, string? rule, int windowHours, string origin)
+    public static string CanonEnv(string env)
+    {
+        var norm = Norm(env);
+        return norm switch
+        {
+            "prd" or "prod" => "prod",
+            "hml" => "hml",
+            "dev" => "dev",
+            "preprd" or "preprod" => "preprod",
+            _ => env.Trim()
+        };
+    }
+
+    public static string ShapeAudit(string json, string? service, string? env, string? status, string? rule, int windowHours, string origin, bool includeLowVolume = false, int? days = null, bool datadog = false)
     {
         try
         {
@@ -67,10 +80,19 @@ public static partial class LogStandards
             var output = new JsonObject
             {
                 ["reading"] = Reading,
-                ["window_hours"] = windowHours,
-                ["origin"] = origin,
                 ["payload_keys"] = Keys(root)
             };
+            if (datadog)
+            {
+                output["refresh"] = false;
+                if (days is not null)
+                    output["days"] = days.Value;
+            }
+            else
+            {
+                output["window_hours"] = windowHours;
+                output["origin"] = origin;
+            }
             if (root["summary"] is JsonNode summary)
                 output["summary"] = ProjectSummary(summary);
 
@@ -82,8 +104,9 @@ public static partial class LogStandards
                 return Finish(output);
             }
 
-            var matched = services.OfType<JsonObject>()
-                .Where(item => Matches(item, service, env, status, rule))
+            var rowsInPayload = services.OfType<JsonObject>().ToList();
+            var matched = rowsInPayload
+                .Where(item => Matches(item, service, env, status, rule, includeLowVolume))
                 .ToList();
             var focused = !string.IsNullOrWhiteSpace(service);
             var shown = matched.Take(focused ? 20 : 20).Select(item => ProjectService(item, focused)).ToList();
@@ -94,8 +117,10 @@ public static partial class LogStandards
             output["by_status"] = CountStatus(matched);
             if (!string.IsNullOrWhiteSpace(service))
                 output["service"] = service.Trim();
+            if (!includeLowVolume)
+                output["low_volume_omitted"] = rowsInPayload.Count(IsLowVolume);
             if (!string.IsNullOrWhiteSpace(env))
-                output["env"] = env.Trim();
+                output["env"] = CanonEnv(env);
             if (!string.IsNullOrWhiteSpace(status))
                 output["status"] = Norm(status);
             if (!string.IsNullOrWhiteSpace(rule))
@@ -103,7 +128,7 @@ public static partial class LogStandards
             if (matched.Count == 0)
                 output["note"] = "Nenhum serviço passou nos filtros. O summary continua válido para a janela.";
             else if (!focused)
-                output["note"] = "Sem service, a lista traz status e o resultado de cada regra, sem a linha de log. Repita com service e env para ver o checks completo.";
+                output["note"] = "Sem service, a lista traz status e o resultado de cada regra, sem a linha de log. Repita com service e env para ver o checks completo. Linhas com low_volume ficam de fora até include_low_volume.";
 
             var rows = new JsonArray();
             foreach (var row in shown)
@@ -203,9 +228,77 @@ public static partial class LogStandards
             }
         }
 
-        if (ChecksOf(source) is JsonArray checks)
-            result["checks"] = ProjectChecks(checks, full);
+        CopyChecks(source, result, full);
         return result;
+    }
+
+    private static void CopyChecks(JsonObject source, JsonObject result, bool full)
+    {
+        foreach (var name in new[] { "checks", "rules", "criteria" })
+        {
+            switch (source[name])
+            {
+                case JsonArray array:
+                    result["checks"] = ProjectChecks(array, full);
+                    return;
+                case JsonObject map:
+                    result["checks"] = ProjectCheckMap(map, full);
+                    return;
+            }
+        }
+    }
+
+    private static JsonObject ProjectCheckMap(JsonObject checks, bool full)
+    {
+        var result = new JsonObject();
+        foreach (var (key, value) in checks)
+        {
+            if (value is null || Payload.IsSecret(key))
+                continue;
+
+            if (!full)
+            {
+                var status = ProjectedStatus(value);
+                if (status is not null)
+                    result[key] = status;
+                continue;
+            }
+
+            result[key] = ProjectFullCheck(key, value);
+        }
+
+        return result;
+    }
+
+    private static JsonNode ProjectFullCheck(string id, JsonNode value)
+    {
+        var sensitive = id.Equals("sensitive", StringComparison.OrdinalIgnoreCase);
+        switch (value)
+        {
+            case JsonValue scalar when scalar.GetValueKind() == JsonValueKind.String:
+                return Truncate(Mask(scalar.GetValue<string>(), sensitive), 300);
+            case JsonValue scalar when scalar.GetValueKind() is JsonValueKind.True or JsonValueKind.False or JsonValueKind.Number:
+                return scalar.DeepClone();
+            case JsonObject obj:
+                var projected = new JsonObject();
+                foreach (var (key, node) in obj)
+                {
+                    if (node is null || Payload.IsSecret(key))
+                        continue;
+                    var evidence = SampleKeys.Contains(key, StringComparer.OrdinalIgnoreCase);
+                    var metric = key is "status" or "ratio" or "pct" or "ok";
+                    if (!evidence && !metric)
+                        continue;
+                    if (node is JsonValue text && text.GetValueKind() == JsonValueKind.String)
+                        projected[key] = Truncate(Mask(text.GetValue<string>(), sensitive), 300);
+                    else if (node is JsonValue scalar)
+                        projected[key] = scalar.DeepClone();
+                }
+
+                return projected;
+            default:
+                return value.DeepClone();
+        }
     }
 
     private static JsonArray ProjectChecks(JsonArray checks, bool full)
@@ -253,11 +346,13 @@ public static partial class LogStandards
         return result;
     }
 
-    private static bool Matches(JsonObject item, string? service, string? env, string? status, string? rule)
+    private static bool Matches(JsonObject item, string? service, string? env, string? status, string? rule, bool includeLowVolume)
     {
+        if (!includeLowVolume && IsLowVolume(item))
+            return false;
         if (!string.IsNullOrWhiteSpace(service) && !Equals(Read(item, "service", "service_name", "name"), service))
             return false;
-        if (!string.IsNullOrWhiteSpace(env) && !Equals(Read(item, "env", "environment"), env))
+        if (!string.IsNullOrWhiteSpace(env) && !EnvEquals(Read(item, "env", "environment"), env))
             return false;
         if (!string.IsNullOrWhiteSpace(status) && Norm(Read(item, "status", "grade", "classification", "result") ?? "") != Norm(status))
             return false;
@@ -266,19 +361,80 @@ public static partial class LogStandards
         return true;
     }
 
-    private static bool MatchesRule(JsonObject item, string rule)
+    private static bool EnvEquals(string? line, string? filter)
     {
-        if (ChecksOf(item) is not JsonArray checks)
+        if (string.IsNullOrWhiteSpace(line) || string.IsNullOrWhiteSpace(filter))
+            return false;
+        return Norm(line) == Norm(filter) || CanonEnv(line) == CanonEnv(filter);
+    }
+
+    private static bool IsLowVolume(JsonObject item)
+    {
+        if (item["low_volume"] is not JsonValue value)
             return false;
 
-        foreach (var check in checks.OfType<JsonObject>())
+        return value.GetValueKind() switch
         {
-            if (!Equals(CheckId(check), rule))
-                continue;
-            return PassedState(check) != true;
+            JsonValueKind.True => true,
+            JsonValueKind.False => false,
+            JsonValueKind.String => value.GetValue<string>().Equals("true", StringComparison.OrdinalIgnoreCase),
+            _ => false
+        };
+    }
+
+    private static bool MatchesRule(JsonObject item, string rule)
+    {
+        foreach (var name in new[] { "checks", "rules", "criteria" })
+        {
+            switch (item[name])
+            {
+                case JsonArray checks:
+                    foreach (var check in checks.OfType<JsonObject>())
+                    {
+                        if (!Equals(CheckId(check), rule))
+                            continue;
+                        return PassedState(check) != true;
+                    }
+
+                    return false;
+                case JsonObject map:
+                    foreach (var (key, value) in map)
+                    {
+                        if (value is null || !key.Equals(rule, StringComparison.OrdinalIgnoreCase))
+                            continue;
+                        var status = ProjectedStatus(value);
+                        return status is null || !PassingStatus.Contains(Norm(status), StringComparer.Ordinal);
+                    }
+
+                    return false;
+            }
         }
 
         return false;
+    }
+
+    private static string? ProjectedStatus(JsonNode value)
+    {
+        switch (value)
+        {
+            case JsonValue scalar when scalar.GetValueKind() == JsonValueKind.String:
+                return scalar.GetValue<string>();
+            case JsonValue scalar when scalar.GetValueKind() == JsonValueKind.True:
+                return "true";
+            case JsonValue scalar when scalar.GetValueKind() == JsonValueKind.False:
+                return "false";
+            case JsonObject obj:
+                var status = Read(obj, "status", "result", "grade", "level");
+                if (status is not null)
+                    return status;
+                if (obj["ok"] is JsonValue ok && ok.GetValueKind() == JsonValueKind.True)
+                    return "true";
+                if (obj["ok"] is JsonValue failed && failed.GetValueKind() == JsonValueKind.False)
+                    return "false";
+                return null;
+            default:
+                return null;
+        }
     }
 
     private static bool? PassedState(JsonObject check)
@@ -340,17 +496,6 @@ public static partial class LogStandards
         foreach (var property in root)
         {
             if (property.Value is JsonArray array && array.Any(item => item is JsonObject obj && (obj["checks"] is not null || obj["status"] is not null || obj["service"] is not null)))
-                return array;
-        }
-
-        return null;
-    }
-
-    private static JsonArray? ChecksOf(JsonObject service)
-    {
-        foreach (var name in new[] { "checks", "rules", "criteria" })
-        {
-            if (service[name] is JsonArray array)
                 return array;
         }
 

@@ -66,6 +66,7 @@ builder.Services
             "Depois da resposta, chame list_environments com esse tier e mostre só os ambientes cujo env e sufixo batem. " +
             "As consultas seguintes usam o env dessa lista e, no Kubernetes, só o cluster do mesmo sufixo. " +
             "Para saber se um serviço está no padrão de log v1, chame guardwatch_version e log_standards_audit com service e env. " +
+            "No audit, prd e prod são prod, e preprd é preprod. Por padrão as linhas low_volume ficam de fora. " +
             "A nota usa structured, severity, correlation, exceptions, noise e sensitive. traces e datadog ficam em summary.criteria_ok.";
     })
     .WithStdioServerTransport()

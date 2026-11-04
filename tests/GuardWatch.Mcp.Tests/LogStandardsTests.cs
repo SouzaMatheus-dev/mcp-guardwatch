@@ -101,7 +101,13 @@ public sealed class LogStandardsTests
         var path = LogStandards.AuditPath(24, "all");
         Assert.Equal("api/v1/admin/log-standards/audit?window_hours=24&origin=all&refresh=false", path);
         Assert.DoesNotContain("service=", path, StringComparison.Ordinal);
-        Assert.Contains("refresh=false", LogStandards.SamplesPath(1, "apps", "api", "noise", "prd"), StringComparison.Ordinal);
+        Assert.Equal(
+            "api/v1/admin/log-standards/samples?window_hours=1&origin=apps&refresh=false&service=identidade-api&criterion=sensitive&env=prod",
+            LogStandards.SamplesPath(1, "apps", "identidade-api", "sensitive", "prd"));
+        Assert.Equal("api/v1/admin/log-standards/datadog?days=7&refresh=false", LogStandards.DatadogPath(7));
+        Assert.Equal("api/v1/admin/log-standards/datadog?refresh=false", LogStandards.DatadogPath(null));
+        Assert.DoesNotContain("window_hours", LogStandards.DatadogPath(7), StringComparison.Ordinal);
+        Assert.DoesNotContain("origin", LogStandards.DatadogPath(7), StringComparison.Ordinal);
 
         Assert.False(LogStandards.TryWindow(12, out var error));
         Assert.Contains("1, 6 ou 24", error);
@@ -109,6 +115,74 @@ public sealed class LogStandardsTests
         Assert.Contains("origin", originError);
         Assert.False(LogStandards.TryStatus("vermelho", out _, out var statusError));
         Assert.Contains("status", statusError);
+    }
+
+    [Fact]
+    public void Audit_le_checks_objeto_mapeia_prd_e_omite_baixo_volume()
+    {
+        const string json = """
+        {
+          "summary": {"critical_services": 32, "sensitive_services": 32},
+          "services": [
+            {
+              "service": "identidade-api",
+              "env": "prod",
+              "namespace": "apps",
+              "status": "critico",
+              "low_volume": false,
+              "checks": {
+                "structured": {"status": "ok", "ratio": 0.99},
+                "sensitive": {"status": "critico", "ok": false, "pct": 0.02, "sample": "cpf 123.456.789-00"},
+                "noise": "padronizado",
+                "traces": true
+              }
+            },
+            {
+              "service": "identidade-api",
+              "env": "prod",
+              "namespace": "batch",
+              "status": "parcial",
+              "low_volume": true,
+              "checks": {"sensitive": {"status": "ok"}}
+            },
+            {
+              "service": "identidade-api",
+              "env": "hml",
+              "namespace": "apps",
+              "status": "critico",
+              "low_volume": false,
+              "checks": {"sensitive": "critico"}
+            }
+          ]
+        }
+        """;
+
+        var focused = LogStandards.ShapeAudit(json, "identidade-api", "prd", null, null, 1, "apps");
+        using var focusedDoc = JsonDocument.Parse(focused);
+        Assert.Equal(1, focusedDoc.RootElement.GetProperty("matched").GetInt32());
+        Assert.Equal("prod", focusedDoc.RootElement.GetProperty("env").GetString());
+        Assert.Equal("apps", focusedDoc.RootElement.GetProperty("services")[0].GetProperty("namespace").GetString());
+        var checks = focusedDoc.RootElement.GetProperty("services")[0].GetProperty("checks");
+        Assert.Equal("critico", checks.GetProperty("sensitive").GetProperty("status").GetString());
+        Assert.Equal(0.99, checks.GetProperty("structured").GetProperty("ratio").GetDouble());
+        Assert.Equal(0.02, checks.GetProperty("sensitive").GetProperty("pct").GetDouble());
+        Assert.Equal("padronizado", checks.GetProperty("noise").GetString());
+        Assert.True(checks.GetProperty("traces").GetBoolean());
+        Assert.DoesNotContain("123.456.789-00", focused);
+        Assert.Contains("***.***.***-**", focused, StringComparison.Ordinal);
+
+        var listed = LogStandards.ShapeAudit(json, null, "prd", "critico", "sensitive", 1, "apps");
+        using var listedDoc = JsonDocument.Parse(listed);
+        Assert.Equal(1, listedDoc.RootElement.GetProperty("matched").GetInt32());
+        Assert.Equal("critico", listedDoc.RootElement.GetProperty("services")[0].GetProperty("checks").GetProperty("sensitive").GetString());
+        Assert.DoesNotContain("123.456.789-00", listed);
+        Assert.DoesNotContain("batch", listed, StringComparison.Ordinal);
+
+        var withLowVolume = LogStandards.ShapeAudit(json, "identidade-api", "prod", null, null, 1, "apps", includeLowVolume: true);
+        using var lowDoc = JsonDocument.Parse(withLowVolume);
+        Assert.Equal(2, lowDoc.RootElement.GetProperty("matched").GetInt32());
+        Assert.Equal("apps", lowDoc.RootElement.GetProperty("services")[0].GetProperty("namespace").GetString());
+        Assert.Equal("batch", lowDoc.RootElement.GetProperty("services")[1].GetProperty("namespace").GetString());
     }
 
     [Fact]
