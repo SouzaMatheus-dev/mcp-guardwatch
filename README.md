@@ -163,7 +163,7 @@ Todas as ferramentas são leitura. Janelas têm teto para não puxar histórico 
 | `guardwatch_version` | Versão, commit e data de build da instância. Use antes de citar o padrão. |
 | `log_standards_criteria` | Regras vigentes. A nota da tela usa as seis primeiras. |
 | `log_standards_audit` | Nota por serviço. `window_hours` aceita 1, 6 ou 24. `prd` e `prod` são `prod`; `preprd` é `preprod`. Com `service`, devolve o `checks`. Sem serviço, devolve o `summary`, a contagem por status e o mapa da regra para o status. Omite `low_volume` até `include_low_volume`. |
-| `log_standards_datadog` | Aba Saída do Datadog. A URL leva `days` e `refresh=false`. |
+| `log_standards_datadog` | Aba Saída do Datadog. Sem `days`, a URL usa `days=1` e `refresh=false`. A resposta traz `summary`, `query` e até 20 `targets`. |
 | `log_standards_samples` | Linhas que falharam uma regra. O argumento é `rule`; a URL envia `criterion`. A regra `sensitive` volta mascarada. |
 | `list_rum_applications` | Aplicações de RUM. O id alimenta as ferramentas abaixo. |
 | `rum_overview` | Visão da aplicação. |
@@ -280,7 +280,8 @@ A publicação no NuGet dispara na tag `v*`. O workflow `.github/workflows/publi
 - YAML de pod pode ainda conter dado operacional. Chaves de senha e token são redigidas linha a linha.
 - A conexão TLS às vezes cai na primeira tentativa. O cliente repete a chamada algumas vezes antes de falhar.
 - O audit de padrão de log baixa a janela e filtra `service`, `env`, `status` e `rule` neste pacote. `prd` vira `prod` antes da comparação. `refresh` vai sempre `false`. Linhas `low_volume` ficam de fora por padrão.
-- A amostra envia `criterion` na URL. A aba Datadog envia `days` e `refresh=false`, sem `window_hours` nem `origin`.
+- A amostra envia `criterion` na URL. Na regra `sensitive`, rótulos como agência, conta, usuário e código perdem o valor mesmo quando o `***` fica antes das aspas. Lista vazia significa que a regra não tem linha na janela.
+- A aba Datadog envia `days` e `refresh=false`, sem `window_hours` nem `origin`. Sem `days`, o padrão é `1`.
 - Amostra da regra `sensitive` sai mascarada. CPF, CNPJ, conta e credencial não voltam em claro.
 - Este pacote não cobre escrita: criar cluster, alterar regra, disparar coleta de banco ou mudar retenção continuam só na interface do GuardWatch.
 

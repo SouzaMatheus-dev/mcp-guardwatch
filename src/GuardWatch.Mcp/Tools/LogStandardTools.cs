@@ -30,9 +30,9 @@ public sealed class LogStandardTools(GuardWatchClient client, ILogger<LogStandar
             LogStandards.ShapeAudit(await client.ReadJsonAsync(path, cancellationToken), service, env, status, rule, window_hours, safeOrigin, include_low_volume));
     }
 
-    [McpServerTool(Name = "log_standards_datadog"), Description("Aba Saída do Datadog. A URL leva days e refresh=false. Não envia window_hours nem origin. Se days vier vazio ou a API recusar o valor, a resposta é o erro do GuardWatch.")]
+    [McpServerTool(Name = "log_standards_datadog"), Description("Aba Saída do Datadog. A URL leva days e refresh=false. Sem days, usa days=1. Não envia window_hours nem origin. A resposta traz summary, query e até 20 targets.")]
     public Task<string> Datadog(
-        [Description("Dias da aba Datadog. O nome na URL é days. Vazio ou recusado pela API volta o 422 do GuardWatch, sem montar window_hours.")] int? days = null,
+        [Description("Dias da aba Datadog. O nome na URL é days. Vazio usa 1, que é a consulta que a API conclui. Não usar 7 como padrão.")] int? days = null,
         [Description("Nome do serviço, quando a resposta listar serviços.")] string? service = null,
         [Description("Ambiente da linha, se a resposta listar serviços. prd e prod viram prod; preprd vira preprod; hml e dev permanecem.")] string? env = null,
         [Description("Quando true, inclui linhas com low_volume. Padrão false.")] bool include_low_volume = false,

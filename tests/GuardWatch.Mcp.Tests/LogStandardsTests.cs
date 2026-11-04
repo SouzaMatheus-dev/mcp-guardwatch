@@ -105,7 +105,7 @@ public sealed class LogStandardsTests
             "api/v1/admin/log-standards/samples?window_hours=1&origin=apps&refresh=false&service=identidade-api&criterion=sensitive&env=prod",
             LogStandards.SamplesPath(1, "apps", "identidade-api", "sensitive", "prd"));
         Assert.Equal("api/v1/admin/log-standards/datadog?days=7&refresh=false", LogStandards.DatadogPath(7));
-        Assert.Equal("api/v1/admin/log-standards/datadog?refresh=false", LogStandards.DatadogPath(null));
+        Assert.Equal("api/v1/admin/log-standards/datadog?days=1&refresh=false", LogStandards.DatadogPath(null));
         Assert.DoesNotContain("window_hours", LogStandards.DatadogPath(7), StringComparison.Ordinal);
         Assert.DoesNotContain("origin", LogStandards.DatadogPath(7), StringComparison.Ordinal);
 
@@ -115,6 +115,105 @@ public sealed class LogStandardsTests
         Assert.Contains("origin", originError);
         Assert.False(LogStandards.TryStatus("vermelho", out _, out var statusError));
         Assert.Contains("status", statusError);
+    }
+
+    [Fact]
+    public void Amostra_sensivel_apaga_valor_depois_do_rotulo()
+    {
+        const string json = """
+        {
+          "criterion": "sensitive",
+          "samples": [
+            "{\"RenderedMessage\":\"Detalhes: { Code: \\\"1234567890\\\", Agencia: ***\\\"0001\\\", Conta: ***\\\"1234567-8\\\", Usuario: ***\\\"fulano\\\" }.\",\"Properties\":{\"Detalhes\":{\"Code\":\"1234567890\",\"Agencia\":\"***\",\"Conta\":\"***\",\"Usuario\":\"***\"}}}"
+          ]
+        }
+        """;
+
+        var text = LogStandards.ShapeSamples(json, "identidade-api", "sensitive");
+
+        Assert.DoesNotContain("0001", text);
+        Assert.DoesNotContain("1234567-8", text);
+        Assert.DoesNotContain("fulano", text);
+        Assert.DoesNotContain("1234567890", text);
+        Assert.Contains("[redigido]", text, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Amostra_vazia_diz_que_a_regra_nao_tem_linha()
+    {
+        const string json = """{"criterion":"structured","samples":[]}""";
+        var text = LogStandards.ShapeSamples(json, "identidade-api", "structured");
+
+        using var document = JsonDocument.Parse(text);
+        Assert.Equal("A regra não tem linha na janela.", document.RootElement.GetProperty("note").GetString());
+        Assert.Equal(0, document.RootElement.GetProperty("returned").GetInt32());
+        Assert.False(document.RootElement.TryGetProperty("body", out _));
+    }
+
+    [Fact]
+    public void Datadog_le_targets_e_preserva_query()
+    {
+        var targets = new JsonArray();
+        for (var i = 0; i < 21; i++)
+        {
+            targets.Add(new JsonObject
+            {
+                ["target"] = new JsonObject
+                {
+                    ["type"] = "k8s",
+                    ["cluster"] = $"CLUSTER/nome-{i}",
+                    ["namespace"] = "namespace",
+                    ["workload"] = $"workload-{i}"
+                },
+                ["evidence"] = new JsonArray
+                {
+                    new JsonObject
+                    {
+                        ["target"] = new JsonObject
+                        {
+                            ["type"] = "k8s",
+                            ["cluster"] = $"CLUSTER/nome-{i}",
+                            ["namespace"] = "namespace",
+                            ["workload"] = $"workload-{i}"
+                        }
+                    },
+                    "Agencia: ***\"0001\""
+                }
+            });
+        }
+
+        var spots = new JsonArray();
+        for (var i = 0; i < 25; i++)
+            spots.Add(new JsonObject { ["name"] = $"spot-{i}" });
+
+        var root = new JsonObject
+        {
+            ["days"] = 1,
+            ["query"] = new JsonObject { ["elapsed_ms"] = 10, ["error"] = "Consulta ao ClickHouse falhou: DatabaseError" },
+            ["summary"] = new JsonObject { ["targets"] = 200, ["apps"] = 185 },
+            ["targets"] = targets,
+            ["blind_spots"] = spots
+        };
+
+        var text = LogStandards.ShapeAudit(root.ToJsonString(), null, null, null, null, 0, "", days: null, datadog: true);
+        using var document = JsonDocument.Parse(text);
+        var body = document.RootElement;
+        Assert.Equal(1, body.GetProperty("days").GetInt32());
+        Assert.Equal(200, body.GetProperty("summary").GetProperty("targets").GetInt32());
+        Assert.Equal("Consulta ao ClickHouse falhou: DatabaseError", body.GetProperty("query").GetProperty("error").GetString());
+        Assert.Equal(21, body.GetProperty("targets_total").GetInt32());
+        Assert.Equal(20, body.GetProperty("targets").GetArrayLength());
+        var first = body.GetProperty("targets")[0];
+        Assert.Equal("k8s", first.GetProperty("type").GetString());
+        Assert.Equal("CLUSTER/nome-0", first.GetProperty("cluster").GetString());
+        Assert.Equal("namespace", first.GetProperty("namespace").GetString());
+        Assert.Equal("workload-0", first.GetProperty("workload").GetString());
+        Assert.Equal("k8s", first.GetProperty("evidence")[0].GetProperty("type").GetString());
+        Assert.False(body.TryGetProperty("body", out _));
+        Assert.False(body.TryGetProperty("services", out _));
+        Assert.Equal(25, body.GetProperty("blind_spots_total").GetInt32());
+        Assert.Equal(20, body.GetProperty("blind_spots").GetArrayLength());
+        Assert.DoesNotContain("0001", text);
     }
 
     [Fact]

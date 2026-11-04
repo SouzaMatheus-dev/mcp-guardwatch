@@ -43,9 +43,11 @@ public static partial class LogStandards
             ("origin", origin),
             ("refresh", "false"));
 
+    public static int EffectiveDays(int? days) => days is > 0 ? days.Value : 1;
+
     public static string DatadogPath(int? days) =>
         ApiQuery.Build("api/v1/admin/log-standards/datadog",
-            ("days", days?.ToString()),
+            ("days", EffectiveDays(days).ToString()),
             ("refresh", "false"));
 
     public static string SamplesPath(int windowHours, string origin, string service, string rule, string? env) =>
@@ -85,8 +87,9 @@ public static partial class LogStandards
             if (datadog)
             {
                 output["refresh"] = false;
-                if (days is not null)
-                    output["days"] = days.Value;
+                output["days"] = root["days"] is JsonValue reported && reported.TryGetValue(out int reportedDays)
+                    ? reportedDays
+                    : EffectiveDays(days);
             }
             else
             {
@@ -95,6 +98,25 @@ public static partial class LogStandards
             }
             if (root["summary"] is JsonNode summary)
                 output["summary"] = ProjectSummary(summary);
+
+            if (datadog && root["targets"] is JsonArray targets)
+            {
+                if (root["query"] is JsonNode query)
+                    output["query"] = query.DeepClone();
+                output["targets_total"] = targets.Count;
+                var shownTargets = new JsonArray();
+                foreach (var item in targets.OfType<JsonObject>().Take(20))
+                    shownTargets.Add(ProjectDatadogTarget(item));
+                output["targets"] = shownTargets;
+                if (root.ContainsKey("blind_spots"))
+                {
+                    output["blind_spots"] = TrimNode(root["blind_spots"], 20, out var blindTotal, out var blindTrimmed);
+                    if (blindTrimmed)
+                        output["blind_spots_total"] = blindTotal;
+                }
+
+                return Finish(output);
+            }
 
             var services = FindServices(root);
             if (services is null)
@@ -166,7 +188,9 @@ public static partial class LogStandards
             };
             if (root is JsonObject obj)
                 output["payload_keys"] = Keys(obj);
-            if (lines.Count == 0)
+            if (root is JsonObject payload && payload["samples"] is JsonArray samples && samples.Count == 0)
+                output["note"] = "A regra não tem linha na janela.";
+            else if (lines.Count == 0)
             {
                 output["note"] = "A resposta não trouxe linhas reconhecíveis. O corpo reduzido está em body.";
                 output["body"] = MaskedLimit(json, sensitive);
@@ -192,7 +216,84 @@ public static partial class LogStandards
 
         text = ElevenDigits().Replace(text, "***.***.***-**");
         text = FourteenDigits().Replace(text, "**.***.***/****-**");
-        return text;
+        return LabeledSecret().Replace(text, "$1[redigido]");
+    }
+
+    private static JsonObject ProjectDatadogTarget(JsonObject item)
+    {
+        var result = new JsonObject();
+        var identity = item["target"] is JsonObject target ? target : item;
+        CopyIdentity(identity, result);
+        if (item["evidence"] is JsonNode evidence && ProjectEvidence(evidence) is JsonNode projected)
+            result["evidence"] = projected;
+        return result;
+    }
+
+    private static void CopyIdentity(JsonObject source, JsonObject target)
+    {
+        foreach (var key in new[] { "type", "cluster", "namespace", "workload" })
+        {
+            if (source[key] is JsonValue value && value.GetValueKind() == JsonValueKind.String)
+                target[key] = value.GetValue<string>();
+        }
+    }
+
+    private static bool HasIdentity(JsonObject source) =>
+        source["type"] is JsonValue type && type.GetValueKind() == JsonValueKind.String
+        && source["cluster"] is JsonValue cluster && cluster.GetValueKind() == JsonValueKind.String
+        && source["namespace"] is JsonValue ns && ns.GetValueKind() == JsonValueKind.String
+        && source["workload"] is JsonValue workload && workload.GetValueKind() == JsonValueKind.String;
+
+    private static JsonNode? ProjectEvidence(JsonNode evidence)
+    {
+        if (evidence is not JsonArray array)
+            return ProjectEvidenceItem(evidence);
+
+        var kept = new JsonArray();
+        foreach (var item in array)
+        {
+            if (ProjectEvidenceItem(item) is JsonNode projected)
+                kept.Add(projected);
+        }
+
+        return kept.Count == 0 ? null : kept;
+    }
+
+    private static JsonNode? ProjectEvidenceItem(JsonNode? item)
+    {
+        switch (item)
+        {
+            case JsonValue value when value.GetValueKind() == JsonValueKind.String:
+                return Mask(value.GetValue<string>(), documents: true);
+            case JsonObject obj:
+                var identity = obj["target"] is JsonObject nested ? nested : obj;
+                if (HasIdentity(identity))
+                {
+                    var projected = new JsonObject();
+                    CopyIdentity(identity, projected);
+                    return projected;
+                }
+
+                var text = Read(obj, "message", "text", "line", "sample", "evidence", "raw", "log");
+                return text is null ? null : Mask(text, documents: true);
+            default:
+                return null;
+        }
+    }
+
+    private static JsonNode? TrimNode(JsonNode? node, int max, out int total, out bool trimmed)
+    {
+        total = 0;
+        trimmed = false;
+        if (node is not JsonArray array)
+            return node?.DeepClone();
+
+        total = array.Count;
+        trimmed = array.Count > max;
+        var kept = new JsonArray();
+        foreach (var item in array.Take(max))
+            kept.Add(item?.DeepClone());
+        return kept;
     }
 
     private static JsonObject ProjectSummary(JsonNode summary)
@@ -708,4 +809,7 @@ public static partial class LogStandards
 
     [GeneratedRegex(@"(?i)\b(conta|account|agencia|agência)\b\s*[:=]?\s*\d{4,}")]
     private static partial Regex Account();
+
+    [GeneratedRegex("""(?i)(\b(?:Agencia|Agência|Conta|Account|Usuario|Usuário|Code|Cpf|Cnpj)\b\s*"?\s*:\s*(?:\*{3,}\s*)?(?:\\?"|")?\s*)([0-9A-Za-zÀ-ÿ][0-9A-Za-zÀ-ÿ._-]*)""")]
+    private static partial Regex LabeledSecret();
 }
